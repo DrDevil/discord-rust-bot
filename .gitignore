@@ -1,0 +1,30 @@
+# Secrets / credentials — never commit (security: see CLAUDE.md §8)
+.env
+*.env
+!.env.example
+credentials*
+*.credentials.json
+
+# Persistence / data at rest
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

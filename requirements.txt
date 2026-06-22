@@ -1,0 +1,5 @@
+# Runtime dependencies (pinned — see CLAUDE.md §12 / security: treat bumps as a review point)
+discord.py==2.7.1
+rustplus==6.0.9
+python-dotenv==1.2.2
+cryptography==49.0.0
