@@ -28,4 +28,4 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: ghcr.io/DrDevil/discord-rust-bot:latest
+          tags: ghcr.io/drdevil/discord-rust-bot:latest
