@@ -5,9 +5,32 @@ services:
     image: ghcr.io/drdevil/discord-rust-bot:latest
     container_name: kapachkin
     restart: unless-stopped
-    env_file:
-      - .env
+
+    # For local development: load from .env file
+    # env_file:
+    #   - .env
+
+    # For Portainer/stack deployment: set via UI or use environment variables below
+    environment:
+      # Discord
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
+      ALERT_CHANNEL_ID: ${ALERT_CHANNEL_ID}
+      # Rust+ Server
+      RUST_SERVER_IP: ${RUST_SERVER_IP}
+      RUST_SERVER_PORT: ${RUST_SERVER_PORT}
+      RUST_STEAM_ID: ${RUST_STEAM_ID}
+      RUST_PLAYER_TOKEN: ${RUST_PLAYER_TOKEN}
+      RUST_SERVER_ID: ${RUST_SERVER_ID}
+      # Encryption & Config
+      FERNET_KEY: ${FERNET_KEY}
+      DATABASE_PATH: ${DATABASE_PATH:-data/rustbot.db}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG_PROTOBUF: ${DEBUG_PROTOBUF:-false}
+      POLL_INTERVAL: ${POLL_INTERVAL:-30}
+
     volumes:
       - ./data:/app/data
+
     labels:
       - "diun.enable=true"
