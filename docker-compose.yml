@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  rustbot:
+    build: .
+    image: discord-rust-bot:latest
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

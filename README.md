@@ -98,6 +98,42 @@ python -m rustbot
 # or without activating: PYTHONPATH=src python -m rustbot
 ```
 
+## Docker
+
+This application can run in Docker using environment variables for configuration.
+
+Build the image:
+
+```bash
+docker build -t discord-rust-bot .
+```
+
+Run the container with an env file and a mounted data directory:
+
+```bash
+docker run --rm \
+  --env-file .env \
+  -v "$(pwd)/data:/app/data" \
+  discord-rust-bot
+```
+
+On Windows PowerShell, use:
+
+```powershell
+docker run --rm `
+  --env-file .env `
+  -v "${PWD}/data:/app/data" `
+  discord-rust-bot
+```
+
+No Docker port publishing is required because the bot makes only outbound connections.
+
+If you prefer Compose, use:
+
+```bash
+docker compose up --build
+```
+
 ## Testing
 
 ```bash
