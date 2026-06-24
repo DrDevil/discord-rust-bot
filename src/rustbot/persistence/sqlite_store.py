@@ -14,12 +14,17 @@ import asyncio
 import json
 import sqlite3
 from datetime import datetime, timezone
+from importlib import resources
 from pathlib import Path
 from typing import Optional
 
 from .base import Repository, ServerStateRecord
 
-_SCHEMA_PATH = Path(__file__).with_name("schema.sql")
+
+def _load_schema() -> str:
+    # Load schema.sql from the package data directory
+    schema_text = resources.files("rustbot.persistence").joinpath("schema.sql").read_text(encoding="utf-8")
+    return schema_text
 
 
 def _now_iso() -> str:
@@ -45,7 +50,7 @@ class SqliteRepository(Repository):
         self._conn = sqlite3.connect(self._path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON;")
-        self._conn.executescript(_SCHEMA_PATH.read_text(encoding="utf-8"))
+        self._conn.executescript(_load_schema())
         self._conn.commit()
 
     async def close(self) -> None:

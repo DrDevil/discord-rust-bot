@@ -17,6 +17,9 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+rustbot = ["persistence/schema.sql"]
+
 [tool.pytest.ini_options]
 # Make `src/` importable in tests without an editable install.
 pythonpath = ["src"]

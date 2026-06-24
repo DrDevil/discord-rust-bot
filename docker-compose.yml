@@ -1,11 +1,13 @@
 version: "3.9"
 
 services:
-  rustbot:
-    build: .
-    image: discord-rust-bot:latest
+  kapachkin:
+    image: ghcr.io/drdevil/discord-rust-bot:latest
+    container_name: kapachkin
+    restart: unless-stopped
     env_file:
       - .env
     volumes:
       - ./data:/app/data
-    restart: unless-stopped
+    labels:
+      - "diun.enable=true"
