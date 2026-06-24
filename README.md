@@ -100,39 +100,113 @@ python -m rustbot
 
 ## Docker
 
-This application can run in Docker using environment variables for configuration.
+### Local development
 
-Build the image:
+Build and run with Docker Compose (handles env, volumes, and restart policy):
+
+```bash
+docker compose up --build
+```
+
+Or manually with `docker run`:
 
 ```bash
 docker build -t discord-rust-bot .
-```
-
-Run the container with an env file and a mounted data directory:
-
-```bash
 docker run --rm \
   --env-file .env \
   -v "$(pwd)/data:/app/data" \
   discord-rust-bot
 ```
 
-On Windows PowerShell, use:
+On Windows PowerShell:
 
 ```powershell
+docker build -t discord-rust-bot .
 docker run --rm `
   --env-file .env `
   -v "${PWD}/data:/app/data" `
   discord-rust-bot
 ```
 
-No Docker port publishing is required because the bot makes only outbound connections.
+### Remote deployment
 
-If you prefer Compose, use:
+**1. Build and push the image**
 
 ```bash
-docker compose up --build
+docker build -t discord-rust-bot .
+docker tag discord-rust-bot your-registry/discord-rust-bot:latest
+docker push your-registry/discord-rust-bot:latest
 ```
+
+(Use your own registry—Docker Hub, GitHub Container Registry, or private registry.)
+
+**2. On the remote server, prepare the environment**
+
+```bash
+# Create a deployment directory
+mkdir -p ~/discord-rust-bot
+cd ~/discord-rust-bot
+
+# Create .env with your configuration (manual step)
+cat > .env << 'EOF'
+DISCORD_TOKEN=your_token_here
+DISCORD_GUILD_ID=your_guild_id
+ALERT_CHANNEL_ID=your_channel_id
+RUST_SERVER_IP=your_server_ip
+RUST_SERVER_PORT=server_port
+RUST_STEAM_ID=your_steam_id
+RUST_PLAYER_TOKEN=your_player_token
+FERNET_KEY=your_fernet_key
+EOF
+
+# Create persistent data directory
+mkdir -p data
+```
+
+**3. Pull and run the image**
+
+```bash
+docker pull your-registry/discord-rust-bot:latest
+
+docker run -d \
+  --name discord-rust-bot \
+  --restart unless-stopped \
+  --env-file .env \
+  -v "$(pwd)/data:/app/data" \
+  your-registry/discord-rust-bot:latest
+```
+
+**4. Monitor and manage**
+
+```bash
+# View logs
+docker logs -f discord-rust-bot
+
+# Stop the bot
+docker stop discord-rust-bot
+
+# Restart the bot
+docker restart discord-rust-bot
+
+# Remove the container (data persists in ./data)
+docker rm discord-rust-bot
+```
+
+### Data persistence
+
+The SQLite database is stored in `/app/data` inside the container and mounted to `./data` on the host. This ensures:
+
+- Database survives container restarts
+- Easy backups (copy `./data/rustbot.db`)
+- Simple recovery if needed
+
+**Keep `FERNET_KEY` separate from database backups**—the key is stored in `.env` (in the environment), not in the database.
+
+### Notes
+
+- No inbound ports are exposed (the bot makes only outbound connections).
+- The container runs as a non-root user (`rustbot:1000`) for security.
+- Use `restart: unless-stopped` in production so the bot restarts automatically after a crash or host reboot.
 
 ## Testing
 
