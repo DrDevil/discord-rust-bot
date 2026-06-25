@@ -24,6 +24,10 @@ class RecordingSink:
 
 
 def test_render_server_offline_is_warning():
+    """Verify offline alerts are rendered with WARNING level.
+    
+    Confirms that server offline status is treated as a warning-level event.
+    """
     alert = AlertEngine.render(
         ServerStatusChanged(server_id=SID, timestamp=NOW, online=False)
     )
@@ -32,6 +36,10 @@ def test_render_server_offline_is_warning():
 
 
 def test_render_server_online_is_good():
+    """Verify online alerts are rendered with GOOD level.
+    
+    Confirms that server recovery is treated as good news.
+    """
     alert = AlertEngine.render(
         ServerStatusChanged(server_id=SID, timestamp=NOW, online=True)
     )
@@ -39,6 +47,10 @@ def test_render_server_online_is_good():
 
 
 def test_render_wipe_has_field():
+    """Verify wipe alerts include the wipe timestamp in embed fields.
+    
+    Ensures players see when the new wipe will be/was.
+    """
     alert = AlertEngine.render(
         WipeDetected(server_id=SID, timestamp=NOW, wipe_time=1_700_000_000)
     )
@@ -47,6 +59,10 @@ def test_render_wipe_has_field():
 
 
 def test_render_team_member_offline():
+    """Verify teammate offline alerts include the member's name.
+    
+    Confirms player names are included in team status change notifications.
+    """
     alert = AlertEngine.render(
         TeamMemberStatusChanged(
             server_id=SID, timestamp=NOW, steam_id=42, name="Alice", online=False
@@ -58,6 +74,10 @@ def test_render_team_member_offline():
 
 @pytest.mark.asyncio
 async def test_engine_dispatches_to_sink():
+    """Verify AlertEngine forwards rendered alerts to the sink (Discord layer).
+    
+    Ensures the alert pipeline integrates: event -> engine -> sink.
+    """
     sink = RecordingSink()
     engine = AlertEngine(sink=sink)
     await engine.handle_event(

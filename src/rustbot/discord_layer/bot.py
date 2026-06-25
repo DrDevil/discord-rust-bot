@@ -26,6 +26,13 @@ _NO_MENTIONS = discord.AllowedMentions.none()
 
 
 def _minimal_intents() -> discord.Intents:
+    """Create a minimal set of Discord gateway intents (guilds only).
+    
+    Follows the least-privilege principle: no message content, no members, only
+    guilds (needed for channel cache and command sync).
+    
+    :return: discord.Intents with only GUILDS enabled.
+    """
     intents = discord.Intents.none()
     intents.guilds = True  # needed for channel cache / command sync
     return intents
@@ -39,6 +46,16 @@ class DiscordBot(discord.Client):
         alert_channel_id: int,
         state_provider: StateProvider,
     ) -> None:
+        """Initialize the Discord bot client.
+        
+        Sets up the client with minimal intents, disables mentions, creates a command
+        tree, and registers slash commands.
+        
+        :param guild_id: Discord guild (server) ID for guild-scoped command sync.
+        :param alert_channel_id: Discord channel ID where alerts are posted.
+        :param state_provider: Callable that returns current ServerState for command responses.
+        :return: None (initializes bot instance).
+        """
         super().__init__(intents=_minimal_intents(), allowed_mentions=_NO_MENTIONS)
         self._guild = discord.Object(id=guild_id)
         self._alert_channel_id = alert_channel_id
@@ -47,6 +64,12 @@ class DiscordBot(discord.Client):
         register_commands(self.tree, self._guild, state_provider)
 
     async def setup_hook(self) -> None:
+        """Sync slash commands with Discord (called on ready).
+        
+        Uses guild-scoped sync for instant deployment (no global propagation delay).
+        
+        :return: None (syncs commands as side effect).
+        """
         # Guild-scoped sync is instant (no global propagation delay).
         await self.tree.sync(guild=self._guild)
         logger.info(
@@ -55,6 +78,10 @@ class DiscordBot(discord.Client):
         )
 
     async def on_ready(self) -> None:
+        """Log bot connection and readiness (called when connection is established).
+        
+        :return: None (logs connection event).
+        """
         user = self.user
         logger.info(
             "discord connected as %s",
@@ -64,7 +91,15 @@ class DiscordBot(discord.Client):
 
     # ----------------------------------------------------- AlertSink protocol
     async def send_alert(self, alert: Alert) -> None:
-        """Render and deliver an alert embed to the configured channel."""
+        """Render and deliver an alert embed to the configured channel.
+        
+        Implements the AlertSink protocol so the domain layer can post without
+        knowing about discord.py. Waits for bot readiness, resolves the alert
+        channel, and sends the rendered embed. Errors are logged but not raised.
+        
+        :param alert: Alert object from the domain layer (domain/alerts.py).
+        :return: None (sends embed to Discord channel as side effect).
+        """
         await self.wait_until_ready()
         channel = await self._resolve_channel()
         if channel is None:
@@ -88,6 +123,13 @@ class DiscordBot(discord.Client):
             )
 
     async def _resolve_channel(self) -> "discord.abc.Messageable | None":
+        """Resolve the alert channel from its ID.
+        
+        First tries get_channel() from the bot's local cache; if not found, fetches
+        from Discord API. Returns None if channel does not exist or is not sendable.
+        
+        :return: discord.abc.Messageable channel object, or None if not found/sendable.
+        """
         channel = self.get_channel(self._alert_channel_id)
         if channel is None:
             try:

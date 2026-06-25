@@ -48,6 +48,11 @@ async def _collect(bucket, event):
 
 @pytest.mark.asyncio
 async def test_offline_transition_publishes_and_persists():
+    """Verify offline transitions both fire events AND persist state.
+    
+    Ensures the event pipeline integrates: observation -> event -> subscriber,
+    and that state changes are persisted for restart recovery.
+    """
     router, repo, received = _router()
     await router.on_info(InfoObservation(server_id=SID, online=True))  # baseline
     await router.on_info(InfoObservation(server_id=SID, online=False))
@@ -61,6 +66,11 @@ async def test_offline_transition_publishes_and_persists():
 
 @pytest.mark.asyncio
 async def test_subscriber_exception_does_not_break_router():
+    """Verify that a failing subscriber does not crash the router or other subscribers.
+    
+    Ensures isolation: one subscriber raising an exception doesn't prevent
+    the router from processing further events.
+    """
     router, repo, _ = _router()
 
     async def boom(_event):
@@ -75,6 +85,11 @@ async def test_subscriber_exception_does_not_break_router():
 
 @pytest.mark.asyncio
 async def test_team_push_then_transition():
+    """Verify team roster observations: baseline is silent, then transitions fire events.
+    
+    Ensures team member status changes trigger alerts after the initial roster
+    is learned (no spam on startup).
+    """
     router, _, received = _router()
     base = TeamObservation(
         server_id=SID,
@@ -94,6 +109,11 @@ async def test_team_push_then_transition():
 
 
 def test_restore_state_marks_baseline_when_roster_present():
+    """Verify restore_state sets team_seeded=True when persisted roster exists.
+    
+    Ensures the bot resumes normal alert behavior immediately after restart
+    without waiting for a new roster observation.
+    """
     record = ServerStateRecord(
         server_id=SID,
         online=True,
@@ -108,6 +128,10 @@ def test_restore_state_marks_baseline_when_roster_present():
 
 
 def test_restore_state_fresh_when_no_record():
+    """Verify restore_state returns blank state when no persisted record exists.
+    
+    Ensures first-run (no database) starts with a clean slate.
+    """
     state = restore_state(None, SID)
     assert state.team_seeded is False
     assert state.online is None

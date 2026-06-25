@@ -44,6 +44,12 @@ class Settings:
 
 
 def _require(name: str) -> str:
+    """Load a required string environment variable.
+    
+    :param name: Name of the environment variable to retrieve.
+    :return: The non-empty environment variable value.
+    :raises ConfigError: If the variable is missing or empty.
+    """
     value = os.environ.get(name, "").strip()
     if not value:
         raise ConfigError(f"Missing required environment variable: {name}")
@@ -51,6 +57,12 @@ def _require(name: str) -> str:
 
 
 def _require_int(name: str) -> int:
+    """Load a required integer environment variable.
+    
+    :param name: Name of the environment variable to retrieve.
+    :return: The parsed integer value.
+    :raises ConfigError: If the variable is missing, empty, or not a valid integer.
+    """
     raw = _require(name)
     try:
         return int(raw)
@@ -59,16 +71,38 @@ def _require_int(name: str) -> int:
 
 
 def _optional(name: str, default: str) -> str:
+    """Load an optional string environment variable with a fallback default.
+    
+    :param name: Name of the environment variable to retrieve.
+    :param default: Default value if the variable is missing or empty.
+    :return: The environment variable value, or default if not set.
+    """
     value = os.environ.get(name, "").strip()
     return value or default
 
 
 def _as_bool(value: str) -> bool:
+    """Parse a string value as a boolean.
+    
+    Accepts '1', 'true', 'yes', 'on' (case-insensitive) as truthy.
+    
+    :param value: String value to parse.
+    :return: True if value is a recognized truthy string; False otherwise.
+    """
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def load_settings(*, load_dotenv_file: bool = True) -> Settings:
-    """Load and validate settings from the environment (and optional .env)."""
+    """Load and validate settings from environment variables (and optional .env).
+    
+    Reads all required Discord, Rust+, and security settings from the environment.
+    Validates ranges (e.g., POLL_INTERVAL >= 5 seconds) and types. Falls back to
+    defaults for optional settings (DATABASE_PATH, LOG_LEVEL, DEBUG_PROTOBUF).
+    
+    :param load_dotenv_file: If True, loads .env file first; defaults to True.
+    :return: Immutable Settings object with all validated configuration.
+    :raises ConfigError: If any required variable is missing or invalid.
+    """
     if load_dotenv_file:
         load_dotenv()
 

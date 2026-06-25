@@ -45,6 +45,15 @@ class ServerState:
 
     # ----------------------------------------------------------------- apply
     def apply_info(self, obs: InfoObservation) -> None:
+        """Update server state with a new server-info observation.
+        
+        Sets online status. If observation is from a successful poll (online=True),
+        stores all info fields; failed polls (online=False) carry no detail so we
+        keep the last known info.
+        
+        :param obs: New InfoObservation from a poll or push.
+        :return: None (mutates self in-place).
+        """
         self.online = obs.online
         if obs.wipe_time:
             self.wipe_time = obs.wipe_time
@@ -53,6 +62,14 @@ class ServerState:
             self.last_info = obs
 
     def apply_team(self, obs: TeamObservation) -> None:
+        """Update server state with a new team-roster observation.
+        
+        Stores member online/offline status and names. Marks the team as seeded
+        so subsequent changes will trigger alerts.
+        
+        :param obs: New TeamObservation from a poll or push.
+        :return: None (mutates self in-place).
+        """
         for member in obs.members:
             self.members[member.steam_id] = member.is_online
             self.member_names[member.steam_id] = member.name
@@ -63,7 +80,16 @@ class ServerState:
 def compute_info_events(
     state: ServerState, obs: InfoObservation, now: datetime
 ) -> List[BaseEvent]:
-    """Events implied by a new server-status reading."""
+    """Events implied by a new server-status reading.
+    
+    Detects server online/offline transitions and wipe-time changes. Returns empty
+    list if no significant change occurred. Does not mutate state.
+    
+    :param state: Last known server state.
+    :param obs: New observation from a poll or push.
+    :param now: Current timestamp for events.
+    :return: List of BaseEvent (may be empty if no transitions detected).
+    """
     events: List[BaseEvent] = []
 
     if obs.online:
@@ -94,7 +120,17 @@ def compute_info_events(
 def compute_team_events(
     state: ServerState, obs: TeamObservation, now: datetime
 ) -> List[BaseEvent]:
-    """Events implied by a new team-roster reading."""
+    """Events implied by a new team-roster reading.
+    
+    Detects team member online/offline transitions. First roster establishes a
+    silent baseline (no alerts). Subsequent rosters generate alerts on changes.
+    Does not mutate state.
+    
+    :param state: Last known server state (including team_seeded flag).
+    :param obs: New observation from a poll or push.
+    :param now: Current timestamp for events.
+    :return: List of TeamMemberStatusChanged events (empty on first baseline).
+    """
     if not state.team_seeded:
         # First roster establishes the baseline silently.
         return []

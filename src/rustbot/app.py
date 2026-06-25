@@ -28,7 +28,17 @@ logger = logging.getLogger("rustbot.app")
 async def _ensure_token_stored(
     repo: SqliteRepository, cipher: TokenCipher, settings: Settings
 ) -> None:
-    """Persist the player token encrypted at rest (idempotent)."""
+    """Persist the player token encrypted at rest (idempotent).
+    
+    Encrypts the Rust+ player token using the Fernet cipher and stores it in SQLite
+    alongside server connection details. If the record already exists, it is updated.
+    This ensures the token is never stored as plaintext.
+    
+    :param repo: SQLite repository for persistence operations.
+    :param cipher: TokenCipher configured with the Fernet key from settings.
+    :param settings: Runtime settings including player token and server ID.
+    :return: None (updates database as side effect).
+    """
     encrypted = cipher.encrypt(str(settings.player_token))
     await repo.upsert_server(
         server_id=settings.server_id,
@@ -40,6 +50,18 @@ async def _ensure_token_stored(
 
 
 async def run(settings: Settings) -> None:
+    """Run the bot's main event loop (Discord and Rust+ concurrently).
+    
+    Builds all layers (client, router, bot, engine), connects to Discord and Rust+,
+    restores last-known state to prevent re-alerting on restart, and runs the
+    Discord client and Rust+ polling loop concurrently (CLAUDE.md §13).
+    Graceful shutdown on Discord disconnect or Rust+ errors.
+    
+    :param settings: Validated runtime settings (from config).
+    :return: None (runs until interrupted or disconnected).
+    :raises ConfigError: If settings are invalid (should not happen after load_settings).
+    :raises KeyboardInterrupt: On user interrupt (SIGINT).
+    """
     cipher = TokenCipher(settings.fernet_key)
 
     repo = SqliteRepository(settings.database_path)
@@ -95,6 +117,16 @@ async def run(settings: Settings) -> None:
 
 
 def main() -> None:
+    """Entry point: load config, set up logging, and run the bot.
+    
+    Loads environment variables, validates configuration, initializes structured
+    logging with secret-masking, and starts the async event loop. On configuration
+    error, prints to stderr and exits with code 2 (before logging is configured).
+    
+    :return: None (runs until interrupted or error; exits with sys.exit).
+    :raises SystemExit: With code 2 if configuration is invalid.
+    :raises KeyboardInterrupt: On user interrupt (caught and logged).
+    """
     try:
         settings = load_settings()
     except ConfigError as exc:

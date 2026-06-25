@@ -19,9 +19,18 @@ _REDACTION_PLACEHOLDER = "***REDACTED***"
 
 
 class StructuredFormatter(logging.Formatter):
-    """Render log records as compact JSON lines."""
-
+    """Render log records as compact JSON lines.
+    
+    Each line contains: timestamp (ISO 8601), level, logger name, message,
+    and optional fields (server_id, event_type) from the record's extra dict.
+    Exceptions are included if present.
+    """
     def format(self, record: logging.LogRecord) -> str:
+        """Format a log record as a JSON line.
+        
+        :param record: The logging record to format.
+        :return: JSON-encoded string with timestamp, level, logger, message, and extra fields.
+        """
         payload = {
             "timestamp": datetime.fromtimestamp(
                 record.created, tz=timezone.utc
@@ -40,9 +49,18 @@ class StructuredFormatter(logging.Formatter):
 
 
 class SecretRedactionFilter(logging.Filter):
-    """Replace known secret substrings in a record's message before emit."""
+    """Replace known secret substrings in a record's message before emit.
+    
+    Prevents accidental logging of tokens, keys, or other sensitive data by
+    replacing known secrets with a placeholder. Only processes secrets >= 4 chars.
+    """
 
     def __init__(self, secrets: Iterable[str]) -> None:
+        """Initialize the filter with a list of secrets to redact.
+        
+        :param secrets: Iterable of secret strings (passwords, tokens, keys) to redact.
+        :return: None (initializes filter instance).
+        """
         super().__init__()
         # Keep only non-trivial secrets to avoid redacting common short strings.
         self._secrets = sorted(
@@ -50,6 +68,13 @@ class SecretRedactionFilter(logging.Filter):
         )
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Filter and redact a log record.
+        
+        Replaces known secrets in the message with a placeholder.
+        
+        :param record: The logging record to filter.
+        :return: True to allow the record to be logged; False to suppress.
+        """
         if not self._secrets:
             return True
         message = record.getMessage()
@@ -70,7 +95,17 @@ def setup_logging(
     secrets: Iterable[str] = (),
     debug_protobuf: bool = False,
 ) -> None:
-    """Configure root logging once, with structured output and redaction."""
+    """Configure root logging once, with structured output and redaction.
+    
+    Sets up JSON-formatted logging with secret redaction. Also configures
+    library-specific loggers (rustplus.py, discord.py) to reduce noise unless
+    explicit debugging is enabled.
+    
+    :param level: Log level as a string ('DEBUG', 'INFO', 'WARNING', etc.); defaults to 'INFO'.
+    :param secrets: Iterable of secret strings to redact from all log messages.
+    :param debug_protobuf: If True, sets rustplus logger to DEBUG; otherwise WARNING.
+    :return: None (configures root logger as side effect; should be called once at startup).
+    """
     handler = logging.StreamHandler()
     handler.setFormatter(StructuredFormatter())
     handler.addFilter(SecretRedactionFilter(secrets))
@@ -95,4 +130,9 @@ def setup_logging(
 
 
 def get_logger(name: str) -> logging.Logger:
+    """Get a logger by name (convenience wrapper).
+    
+    :param name: Name of the logger (typically __name__).
+    :return: logging.Logger instance.
+    """
     return logging.getLogger(name)

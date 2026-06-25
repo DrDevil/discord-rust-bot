@@ -20,6 +20,11 @@ class TokenCipher:
     """Encrypt/decrypt small secrets with a Fernet key."""
 
     def __init__(self, key: str) -> None:
+        """Initialize the cipher with a Fernet key.
+        
+        :param key: URL-safe base64 encoded Fernet key (generate with Fernet.generate_key()).
+        :raises CryptoError: If the key is invalid or malformed.
+        """
         try:
             self._fernet = Fernet(key.encode("utf-8"))
         except (ValueError, TypeError) as exc:
@@ -28,9 +33,20 @@ class TokenCipher:
             ) from exc
 
     def encrypt(self, plaintext: str) -> str:
+        """Encrypt plaintext to a Fernet-encrypted base64 string.
+        
+        :param plaintext: The secret string to encrypt.
+        :return: Base64-encoded ciphertext safe for persistent storage.
+        """
         return self._fernet.encrypt(plaintext.encode("utf-8")).decode("utf-8")
 
     def decrypt(self, ciphertext: str) -> str:
+        """Decrypt a Fernet-encrypted base64 string back to plaintext.
+        
+        :param ciphertext: The encrypted string (as returned from encrypt()).
+        :return: The decrypted plaintext.
+        :raises CryptoError: If decryption fails (key mismatch or corrupted data).
+        """
         try:
             return self._fernet.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
         except InvalidToken as exc:

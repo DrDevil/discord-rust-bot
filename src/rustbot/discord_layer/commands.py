@@ -28,7 +28,17 @@ def register_commands(
     guild: discord.abc.Snowflake,
     get_state: StateProvider,
 ) -> None:
-    """Attach the Phase 1 commands to ``tree`` for the given guild."""
+    """Attach the Phase 1 slash commands to the command tree for the given guild.
+    
+    Creates three commands: /server, /team, /wipe. All are guild-scoped,
+    require manage_guild permission, and reply with embeds built from ServerState.
+    Each command defers immediately (within 3-second Discord window per CLAUDE.md section 6).
+    
+    :param tree: Discord command tree to register commands with.
+    :param guild: Discord guild (Snowflake) for guild-scoped command registration.
+    :param get_state: Callable that returns current ServerState (for command responses).
+    :return: None (registers command handlers as side effect).
+    """
 
     @tree.command(
         name="server",

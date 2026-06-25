@@ -25,7 +25,16 @@ _LEVEL_COLOURS = {
 
 
 def sanitize(text: str | None, *, max_len: int = _MAX_FIELD) -> str:
-    """Neutralise mention tokens and bound the length of untrusted text."""
+    """Neutralise mention tokens and bound the length of untrusted text.
+    
+    Defangs @everyone, @here, and <@ (user mention prefix) tokens to prevent
+    Discord mention spam if malicious server names or player names are returned
+    by the Rust+ API. Also truncates text to max_len with ellipsis.
+    
+    :param text: Untrusted text from Rust server (server name, player name, etc).
+    :param max_len: Maximum string length; defaults to 256 (_MAX_FIELD).
+    :return: Sanitized text safe to place in a Discord embed.
+    """
     if not text:
         return "—"
     cleaned = (
@@ -39,12 +48,28 @@ def sanitize(text: str | None, *, max_len: int = _MAX_FIELD) -> str:
 
 
 def _epoch_to_str(epoch: int | None) -> str:
+    """Convert Unix timestamp to readable UTC date-time string.
+    
+    :param epoch: Unix timestamp (seconds since 1970-01-01T00:00:00Z); None for unknown.
+    :return: Formatted string like "2026-06-25 14:30 UTC", or "Unknown" if epoch is None/0.
+    """
     if not epoch:
         return "Unknown"
     return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
 def build_alert_embed(alert: Alert) -> discord.Embed:
+    """Build a Discord embed for an Alert.
+    
+    Creates a colored embed with alert title, description, and custom fields.
+    Colors reflect alert level (good=green, info=blue, warning=orange).
+    All text is sanitized before embedding.
+    
+    :param alert: Alert object with title, description, level, fields, and timestamp.
+    :return: Discord Embed object ready to send to Discord channel.
+    
+    See: domain/alerts.py for Alert structure.
+    """
     embed = discord.Embed(
         title=sanitize(alert.title, max_len=256),
         description=sanitize(alert.description, max_len=2048),
@@ -58,6 +83,16 @@ def build_alert_embed(alert: Alert) -> discord.Embed:
 
 
 def build_server_embed(state: ServerState) -> discord.Embed:
+    """Build a Discord embed showing current server status.
+    
+    Displays server name, player count (with queue), map size, seed, and last wipe time.
+    Colors indicate online status: green (online), red (offline), grey (unknown).
+    If no server info has been received yet, shows a placeholder description.
+    All text is sanitized.
+    
+    :param state: Current ServerState with last known info, online status, wipe time.
+    :return: Discord Embed object ready to send to Discord channel.
+    """
     online = state.online
     if online is True:
         colour, status = discord.Colour.green(), "🟢 Online"
@@ -90,6 +125,16 @@ def build_server_embed(state: ServerState) -> discord.Embed:
 
 
 def build_team_embed(state: ServerState) -> discord.Embed:
+    """Build a Discord embed showing team member status (online/offline).
+    
+    Lists all team members in two columns: online (green dot) and offline (white dot).
+    Names are sorted alphabetically; only name and online status shown (Phase 1,
+    per CLAUDE.md §2 — positions are intentionally excluded to avoid leaking location data).
+    Shows count of online and offline members.
+    
+    :param state: Current ServerState with member roster and online status.
+    :return: Discord Embed object ready to send to Discord channel.
+    """
     embed = discord.Embed(title="Team Status", colour=discord.Colour.blurple())
 
     if not state.member_names:
@@ -123,6 +168,14 @@ def build_team_embed(state: ServerState) -> discord.Embed:
 
 
 def build_wipe_embed(state: ServerState) -> discord.Embed:
+    """Build a Discord embed showing the last detected server wipe time.
+    
+    Displays the timestamp of the most recent wipe detected. Shows a placeholder
+    if no wipe has been detected yet.
+    
+    :param state: Current ServerState with wipe_time (Unix timestamp or None).
+    :return: Discord Embed object ready to send to Discord channel.
+    """
     embed = discord.Embed(title="Last Detected Wipe", colour=discord.Colour.orange())
     if state.wipe_time:
         embed.add_field(name="Wipe time", value=_epoch_to_str(state.wipe_time), inline=False)

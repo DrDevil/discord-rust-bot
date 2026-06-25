@@ -49,6 +49,11 @@ class AlertSink(Protocol):
 
 
 def _format_epoch(epoch: int) -> str:
+    """Format a Unix timestamp as a readable UTC date-time string.
+    
+    :param epoch: Unix timestamp (seconds since 1970-01-01T00:00:00Z).
+    :return: Formatted string like '2026-06-25 14:30 UTC'.
+    """
     return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
@@ -56,9 +61,22 @@ class AlertEngine:
     """Renders events to alerts and forwards them to a sink."""
 
     def __init__(self, sink: AlertSink) -> None:
+        """Initialize the alert engine with a sink.
+        
+        :param sink: An AlertSink implementation (typically the Discord layer).
+        :return: None (stores sink for later use).
+        """
         self._sink = sink
 
     async def handle_event(self, event: BaseEvent) -> None:
+        """Process an event and dispatch an alert if applicable.
+        
+        Renders the event to an Alert using render(), then forwards it to the sink.
+        If render() returns None, the event is silently ignored (no alert).
+        
+        :param event: A state-change event (from the event router).
+        :return: None (sends alert to sink as side effect).
+        """
         alert = self.render(event)
         if alert is None:
             return
@@ -70,6 +88,14 @@ class AlertEngine:
 
     @staticmethod
     def render(event: BaseEvent) -> "Alert | None":
+        """Convert an event to an alert or return None if no alert is appropriate.
+        
+        Maps each event type to a user-friendly alert with title, description, level,
+        and optional fields. Returns None for unknown event types (logs a warning).
+        
+        :param event: A state-change event.
+        :return: Alert object if a renderer exists for this event type; None otherwise.
+        """
         if isinstance(event, ServerStatusChanged):
             if event.online:
                 return Alert(

@@ -19,6 +19,11 @@ async def repo(tmp_path):
 
 @pytest.mark.asyncio
 async def test_token_round_trip(repo):
+    """Verify encrypted tokens can be stored and retrieved from SQLite.
+    
+    Ensures tokens are securely persisted (as ciphertext) and can be decrypted
+    on retrieval using the correct cipher.
+    """
     cipher = TokenCipher(TokenCipher.generate_key())
     encrypted = cipher.encrypt("1234567890")
     assert encrypted != "1234567890"  # stored ciphertext, not plaintext
@@ -30,6 +35,10 @@ async def test_token_round_trip(repo):
 
 
 def test_wrong_key_fails_closed():
+    """Verify decryption fails when using a different Fernet key (fail-safe).
+    
+    Ensures that a leaked database without the correct FERNET_KEY is useless.
+    """
     cipher = TokenCipher(TokenCipher.generate_key())
     encrypted = cipher.encrypt("secret")
     other = TokenCipher(TokenCipher.generate_key())
@@ -39,6 +48,11 @@ def test_wrong_key_fails_closed():
 
 @pytest.mark.asyncio
 async def test_state_round_trip_survives_restart(tmp_path):
+    """Verify server state (online status, wipe time, team roster) survives restart.
+    
+    Critical regression test: ensures the bot recovers state after a restart
+    without re-alerting stale events. A failed test here breaks core functionality.
+    """
     db = str(tmp_path / "state.db")
     cipher = TokenCipher(TokenCipher.generate_key())
 
@@ -71,4 +85,8 @@ async def test_state_round_trip_survives_restart(tmp_path):
 
 @pytest.mark.asyncio
 async def test_load_unknown_server_returns_none(repo):
+    """Verify loading state for a non-existent server returns None gracefully.
+    
+    Ensures first-run (no persisted data) doesn't crash.
+    """
     assert await repo.load_server_state("nope:0") is None

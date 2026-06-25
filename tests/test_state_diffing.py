@@ -31,12 +31,21 @@ def _apply(state, obs):
 
 
 def test_first_online_observation_is_silent_baseline():
+    """Verify first server online observation establishes silent baseline (no alert).
+    
+    Ensures the bot doesn't fire a 'server online' alert on first startup.
+    Subsequent offline/online transitions will fire alerts normally.
+    """
     state = ServerState(server_id=SID)
     assert _apply(state, _info(online=True)) == []
     assert state.online is True
 
 
 def test_online_to_offline_emits_once():
+    """Verify offline transition fires exactly once (no duplicates on repeated polls).
+    
+    Prevents alert spam when the server is offline and being polled repeatedly.
+    """
     state = ServerState(server_id=SID)
     _apply(state, _info(online=True))
     events = _apply(state, _info(online=False))
@@ -48,6 +57,10 @@ def test_online_to_offline_emits_once():
 
 
 def test_offline_to_online_emits_recovery():
+    """Verify server recovery (offline -> online) fires a status alert.
+    
+    Players should be notified when a down server comes back online.
+    """
     state = ServerState(server_id=SID, online=False)
     events = _apply(state, _info(online=True))
     assert len(events) == 1
@@ -56,6 +69,11 @@ def test_offline_to_online_emits_recovery():
 
 
 def test_wipe_first_seen_is_silent_then_change_alerts():
+    """Verify wipe time: first observation is silent, then changes trigger alert.
+    
+    Prevents a 'wipe detected' alert on every server restart.
+    Only new/changed wipe times trigger alerts.
+    """
     state = ServerState(server_id=SID)
     # First time we learn the wipe time: baseline, no alert.
     assert _apply(state, _info(online=True, wipe_time=1000)) == []
@@ -86,6 +104,11 @@ def _apply_team(state, obs):
 
 
 def test_team_baseline_is_silent():
+    """Verify first team roster observation establishes silent baseline (no alerts).
+    
+    Prevents teammate 'online' alerts on first startup or when initially learning
+    the team roster.
+    """
     state = ServerState(server_id=SID)
     events = _apply_team(state, _team((1, "Alice", True), (2, "Bob", False)))
     assert events == []
@@ -93,6 +116,10 @@ def test_team_baseline_is_silent():
 
 
 def test_team_member_status_transition_emits():
+    """Verify team member status changes (online <-> offline) fire alerts.
+    
+    After baseline is established, any teammate status change should fire an alert.
+    """
     state = ServerState(server_id=SID)
     _apply_team(state, _team((1, "Alice", False)))
     events = _apply_team(state, _team((1, "Alice", True)))
@@ -103,12 +130,20 @@ def test_team_member_status_transition_emits():
 
 
 def test_team_no_change_is_silent():
+    """Verify that identical team roster observations don't fire duplicate alerts.
+    
+    Prevents alert spam when the same roster is polled repeatedly without changes.
+    """
     state = ServerState(server_id=SID)
     _apply_team(state, _team((1, "Alice", True)))
     assert _apply_team(state, _team((1, "Alice", True))) == []
 
 
 def test_new_member_after_baseline_alerts_when_online():
+    """Verify that newly discovered team members trigger alerts when online.
+    
+    Ensures players are notified when a new teammate appears in the roster and is online.
+    """
     state = ServerState(server_id=SID)
     _apply_team(state, _team((1, "Alice", True)))
     events = _apply_team(state, _team((1, "Alice", True), (2, "Bob", True)))
